@@ -37,16 +37,17 @@ def test_parse_error_response_maps_status_to_subclass(
         status,
         {
             "statusCode": status,
-            "error": "Failure",
+            "errorCode": "ERR_X",
             "message": "Custom message",
-            "code": "ERR_X",
-            "correlationId": "corr-1",
+            "timestamp": "2026-06-05T10:30:00.000Z",
+            "requestId": "req-1",
         },
     )
     assert isinstance(err, expected)
     assert err.status_code == status
-    assert err.code == "ERR_X"
-    assert err.correlation_id == "corr-1"
+    assert err.error_code == "ERR_X"
+    assert err.request_id == "req-1"
+    assert err.message == "Custom message"
     assert str(err) == "Custom message"
 
 
@@ -54,14 +55,29 @@ def test_parse_error_response_uses_fallback_message_when_envelope_invalid() -> N
     err = parse_error_response(401, None)
     assert isinstance(err, AuthenticationError)
     assert "API key" in str(err)
-    assert err.code is None
-    assert err.correlation_id is None
+    assert err.error_code is None
+    assert err.request_id is None
 
 
 def test_parse_error_response_falls_back_when_body_is_partial() -> None:
-    err = parse_error_response(429, {"error": "RateLimited"})
+    err = parse_error_response(429, {"errorCode": "TOO_MANY_REQUESTS"})
     assert isinstance(err, RateLimitError)
     assert "Rate limit" in str(err)
+
+
+def test_parse_error_response_joins_message_array() -> None:
+    err = parse_error_response(
+        400,
+        {
+            "statusCode": 400,
+            "errorCode": "VALIDATION_ERROR",
+            "message": ["field a is required", "field b is invalid"],
+            "requestId": "req-2",
+        },
+    )
+    assert err.error_code == "VALIDATION_ERROR"
+    assert "field a is required" in str(err)
+    assert "field b is invalid" in str(err)
 
 
 def test_timeout_error_carries_timeout_ms() -> None:
@@ -71,9 +87,9 @@ def test_timeout_error_carries_timeout_ms() -> None:
 
 
 def test_repr_includes_diagnostic_fields() -> None:
-    err = ApiError(500, "INTERNAL", "abc", "boom")
+    err = ApiError(500, "INTERNAL_ERROR", "req-abc", "boom")
     rendered = repr(err)
     assert "ApiError" in rendered
     assert "500" in rendered
-    assert "INTERNAL" in rendered
-    assert "abc" in rendered
+    assert "INTERNAL_ERROR" in rendered
+    assert "req-abc" in rendered

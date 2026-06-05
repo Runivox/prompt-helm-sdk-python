@@ -81,7 +81,7 @@ def test_execute_sends_expected_request_and_returns_typed_response(
     assert request.headers["content-type"] == "application/json"
     assert request.headers["accept"] == "application/json"
     assert request.headers["user-agent"].startswith("my-app/1.2.3 ")
-    assert "@prompt-helm/sdk (python)" in request.headers["user-agent"]
+    assert "prompt-helm-sdk-python/" in request.headers["user-agent"]
 
     body = json.loads(request.content)
     assert body == {
@@ -101,10 +101,10 @@ def test_execute_raises_authentication_error_on_401(
             401,
             json={
                 "statusCode": 401,
-                "error": "Unauthorized",
+                "errorCode": "UNAUTHORIZED",
                 "message": "Bad token",
-                "code": "INVALID_API_KEY",
-                "correlationId": "corr-1",
+                "timestamp": "2026-06-05T10:30:00.000Z",
+                "requestId": "req-1",
             },
         )
     )
@@ -114,7 +114,8 @@ def test_execute_raises_authentication_error_on_401(
     ):
         client.execute(prompt_slug="welcome")
     assert info.value.status_code == 401
-    assert info.value.code == "INVALID_API_KEY"
+    assert info.value.error_code == "UNAUTHORIZED"
+    assert info.value.request_id == "req-1"
 
 
 @respx.mock
@@ -124,7 +125,7 @@ def test_execute_raises_rate_limit_error_on_429_without_retry(
     route = respx.post(execute_url).mock(
         return_value=httpx.Response(
             429,
-            json={"statusCode": 429, "error": "TooMany", "message": "Slow down"},
+            json={"statusCode": 429, "errorCode": "TOO_MANY_REQUESTS", "message": "Slow down"},
         )
     )
     with _client(api_key, base_url, max_retries=3) as client, pytest.raises(RateLimitError):
@@ -139,7 +140,7 @@ def test_execute_retries_on_500_then_raises_api_error(
     route = respx.post(execute_url).mock(
         return_value=httpx.Response(
             500,
-            json={"statusCode": 500, "error": "Internal", "message": "Boom"},
+            json={"statusCode": 500, "errorCode": "INTERNAL_ERROR", "message": "Boom"},
         )
     )
     with _client(api_key, base_url, max_retries=2) as client, pytest.raises(ApiError):
@@ -156,7 +157,9 @@ def test_execute_recovers_after_transient_5xx(
 ) -> None:
     route = respx.post(execute_url).mock(
         side_effect=[
-            httpx.Response(503, json={"statusCode": 503, "error": "X", "message": "down"}),
+            httpx.Response(
+                503, json={"statusCode": 503, "errorCode": "INTERNAL_ERROR", "message": "down"}
+            ),
             httpx.Response(200, json=successful_response),
         ]
     )
@@ -220,8 +223,8 @@ def test_stream_raises_api_error_for_error_frame(
     with _client(api_key, base_url) as client, pytest.raises(ApiError) as info:
         for _ in client.stream(prompt_slug="welcome"):
             pass
-    assert info.value.code == "PROVIDER_DOWN"
-    assert info.value.correlation_id == "req-99"
+    assert info.value.error_code == "PROVIDER_DOWN"
+    assert info.value.request_id == "req-99"
 
 
 @respx.mock
@@ -231,7 +234,7 @@ def test_stream_raises_typed_error_on_http_status(
     respx.post(stream_url).mock(
         return_value=httpx.Response(
             401,
-            json={"statusCode": 401, "error": "Unauthorized", "message": "Bad token"},
+            json={"statusCode": 401, "errorCode": "UNAUTHORIZED", "message": "Bad token"},
         )
     )
     with _client(api_key, base_url) as client, pytest.raises(AuthenticationError):

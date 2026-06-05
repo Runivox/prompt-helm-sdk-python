@@ -59,10 +59,14 @@ StreamEvent = Union[StreamChunkEvent, StreamDoneEvent, StreamErrorEvent]
 
 @dataclass(frozen=True)
 class ErrorEnvelope:
-    """The error shape returned by the PromptHelm API."""
+    """The JSON HTTP error envelope returned by the PromptHelm API.
+
+    All five fields are always present on the wire:
+    ``{ statusCode, errorCode, message, timestamp, requestId }``.
+    """
 
     status_code: int
-    error: str
+    error_code: str
     message: str
-    code: str | None = None
-    correlation_id: str | None = None
+    timestamp: str | None = None
+    request_id: str | None = None

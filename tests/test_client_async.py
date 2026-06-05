@@ -41,7 +41,9 @@ async def test_async_execute_raises_authentication_error(
     api_key: str, base_url: str, execute_url: str
 ) -> None:
     respx.post(execute_url).mock(
-        return_value=httpx.Response(401, json={"statusCode": 401, "error": "X", "message": "bad"})
+        return_value=httpx.Response(
+            401, json={"statusCode": 401, "errorCode": "UNAUTHORIZED", "message": "bad"}
+        )
     )
     async with _client(api_key, base_url, max_retries=3) as client:
         with pytest.raises(AuthenticationError):
@@ -54,7 +56,7 @@ async def test_async_execute_does_not_retry_on_429(
 ) -> None:
     route = respx.post(execute_url).mock(
         return_value=httpx.Response(
-            429, json={"statusCode": 429, "error": "X", "message": "limited"}
+            429, json={"statusCode": 429, "errorCode": "TOO_MANY_REQUESTS", "message": "limited"}
         )
     )
     async with _client(api_key, base_url, max_retries=3) as client:
@@ -68,7 +70,9 @@ async def test_async_execute_retries_5xx_then_raises(
     api_key: str, base_url: str, execute_url: str
 ) -> None:
     route = respx.post(execute_url).mock(
-        return_value=httpx.Response(502, json={"statusCode": 502, "error": "X", "message": "bad"})
+        return_value=httpx.Response(
+            502, json={"statusCode": 502, "errorCode": "INTERNAL_ERROR", "message": "bad"}
+        )
     )
     async with _client(api_key, base_url, max_retries=2) as client:
         with pytest.raises(ApiError):
@@ -125,8 +129,8 @@ async def test_async_stream_raises_on_error_frame(
         with pytest.raises(ApiError) as info:
             async for _ in client.stream(prompt_slug="welcome"):
                 pass
-    assert info.value.code == "PROVIDER_DOWN"
-    assert info.value.correlation_id == "req-7"
+    assert info.value.error_code == "PROVIDER_DOWN"
+    assert info.value.request_id == "req-7"
 
 
 async def test_async_constructor_validates_api_key(base_url: str) -> None:
