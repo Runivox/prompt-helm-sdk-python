@@ -56,7 +56,7 @@ jobs:
           # `name @ file://...`.
           pip install .
           pip freeze --exclude-editable \
-            | grep -viE '^(prompt[-_]helm)( *==| *@)' \
+            | grep -viE '^(prompt[-_]helm([-_]sdk)?)( *==| *@)' \
             > audit-requirements.txt
           cat audit-requirements.txt
       - name: Install audit tool

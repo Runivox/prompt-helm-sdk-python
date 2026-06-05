@@ -18,7 +18,7 @@ version-listing, or telemetry endpoints — a saved prompt is resolved by passin
 ## Install
 
 ```bash
-pip install prompt-helm
+pip install prompt-helm-sdk
 ```
 
 The package ships strict type information (PEP 561 `py.typed`) and supports Python 3.9 through 3.13.
