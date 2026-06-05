@@ -36,9 +36,37 @@ jobs:
       - name: Tests
         run: pytest -v
 
+  audit:
+    name: Dependency audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Resolve the SDK dependency closure
+        run: |
+          python -m pip install --upgrade pip
+          # Install ONLY the SDK so the freeze captures its runtime dependency
+          # closure (httpx + transitives) and nothing else. We exclude the
+          # local, not-yet-published project itself (pip-audit cannot look it
+          # up on PyPI) — matched whether pip renders it as `name==x` or
+          # `name @ file://...`.
+          pip install .
+          pip freeze --exclude-editable \
+            | grep -viE '^(prompt[-_]helm)( *==| *@)' \
+            > audit-requirements.txt
+          cat audit-requirements.txt
+      - name: Install audit tool
+        run: pip install pip-audit
+      - name: Audit dependencies for known vulnerabilities
+        run: pip-audit --strict --progress-spinner off -r audit-requirements.txt
+
   publish:
     name: Publish to PyPI
-    needs: test
+    needs: [test, audit]
     if: github.event_name == 'release' && github.event.action == 'published'
     runs-on: ubuntu-latest
     permissions:
