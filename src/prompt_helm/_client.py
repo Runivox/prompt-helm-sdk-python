@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
+from importlib import metadata
 from typing import Any
 from urllib.parse import urlparse
 
@@ -25,7 +26,19 @@ DEFAULT_TIMEOUT_SECONDS = 60.0
 DEFAULT_MAX_RETRIES = 2
 API_KEY_LENGTH = 36
 API_KEY_PREFIX = "phk_"
-SDK_USER_AGENT = "@prompt-helm/sdk (python)"
+PACKAGE_NAME = "prompt-helm"
+
+
+def _sdk_version() -> str:
+    """Resolve the installed package version from metadata, with a safe fallback."""
+
+    try:
+        return metadata.version(PACKAGE_NAME)
+    except metadata.PackageNotFoundError:  # pragma: no cover - only when run from source tree
+        return "0.0.0"
+
+
+SDK_USER_AGENT = f"prompt-helm-sdk-python/{_sdk_version()}"
 
 
 @dataclass(frozen=True)
