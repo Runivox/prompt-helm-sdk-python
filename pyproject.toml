@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "prompt-helm"
-version = "0.1.0"
+version = "0.2.0"
 description = "Official Python SDK for PromptHelm — call your managed prompts from any application."
 license = { text = "MIT" }
 authors = [{ name = "Runivox", email = "support@prompthelm.app" }]
